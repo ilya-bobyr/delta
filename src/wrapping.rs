@@ -696,6 +696,8 @@ mod tests {
             "--wrap-right-percent",
             "37.0%",
         ];
+        static ref WRAP_DEFAULT_UNICODE_ARGS: Vec<&'static str> =
+            vec!["--wrap-right-percent", "37.0%",];
     }
 
     lazy_static! {
@@ -705,6 +707,12 @@ mod tests {
 
     fn default_wrap_cfg_plus<'a>(args: &[&'a str]) -> Vec<&'a str> {
         let mut result = WRAP_DEFAULT_ARGS.clone();
+        result.extend_from_slice(args);
+        result
+    }
+
+    fn default_unicode_wrap_cfg_plus<'a>(args: &[&'a str]) -> Vec<&'a str> {
+        let mut result = WRAP_DEFAULT_UNICODE_ARGS.clone();
         result.extend_from_slice(args);
         result
     }
@@ -1205,5 +1213,45 @@ index 223ca50..e69de29 100644
                     │    │                              │    │3.........4.........5........>"#,
                 );
         }
+    }
+
+    #[test]
+    fn test_long_line_wrap() {
+        let mut config = make_config_from_args(&default_unicode_wrap_cfg_plus(&[
+            "--side-by-side",
+            "--width",
+            "70",
+        ]));
+        config.truncation_symbol = ">".into();
+
+        let input = r#"
+diff --git a.rs b.rs
+--- a.rs
++++ b.rs
+@@ -127,6 +128,16 @@ f() {
+         a
++        "--------------------\
+         z
+ }
+"#;
+        let expected = r#"
+
+
+a.rs ⟶   b.rs
+──────────────────────────────────────────────────────────────────────
+
+───────────┐
+128: f() { │
+───────────┘
+│ 127│        a                    │ 128│        a
+│    │                             │ 129│        "-------------------↴
+│    │                             │    │                          …-\
+│ 128│        z                    │ 130│        z
+│ 129│}                            │ 131│}
+"#;
+
+        DeltaTest::with_config(&config)
+            .with_input(input)
+            .expect(expected);
     }
 }
